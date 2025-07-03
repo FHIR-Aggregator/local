@@ -1,0 +1,39 @@
+
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=hapi
+      - POSTGRES_USER=hapi
+      - POSTGRES_PASSWORD=hapi
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  fhir-server:
+    image: hapiproject/hapi:v8.2.0-1 # -tomcat
+    ports:
+      - "8080:8080"
+    environment:
+      - HAPI_FHIR_DATASOURCE_DRIVER=org.postgresql.Driver
+      - HAPI_FHIR_DATASOURCE_URL=jdbc:postgresql://db:5432/hapi
+      - HAPI_FHIR_DATASOURCE_USERNAME=hapi
+      - HAPI_FHIR_DATASOURCE_PASSWORD=hapi
+      - hapi.fhir.bulk_export_enabled=true
+      - hapi.fhir.bulk_import_enabled=true
+    depends_on:
+      - db
+    volumes:
+      - fhir-data:/var/lib/hapi
+
+  importer:
+    build: ./importer
+    command: python import_fhir_data.py
+#    depends_on:
+#      - fhir-server
+    environment:
+      - PYTHONUNBUFFERED=1
+
+volumes:
+  db-data:
+  fhir-data:
