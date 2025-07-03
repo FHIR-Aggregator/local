@@ -6,7 +6,6 @@ import time
 
 import requests
 from requests.adapters import HTTPAdapter
-from urllib3.exceptions import ResponseError
 from urllib3.util.retry import Retry
 
 FHIR_SERVER_URL = os.environ.get("FHIR_SERVER_URL", "http://fhir-server:8080/fhir")
