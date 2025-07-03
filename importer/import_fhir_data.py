@@ -248,7 +248,7 @@ def poll_import_status(dataset_name, status_url):
                 f"✅ Import completed for {dataset_name} "
                 f"(OperationOutcome received)"
             )
-        sys.exit(1)
+        sys.exit(0)
 
 
 def main():
