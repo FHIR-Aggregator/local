@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time
+from tqdm import tqdm
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -186,69 +187,90 @@ def poll_import_status(dataset_name, status_url):
         dataset_name (str): Name of the dataset.
         status_url (str): URL to poll for import status.
     """
-    while True:
-        response = requests.get(status_url)
-        content_type = response.headers.get("Content-Type", "")
-        if "json" not in content_type:
-            print(
-                f"❌ Unexpected Content-Type for {dataset_name}: {content_type}"
-            )
-            print(f"Response: {response.text}")
-            sys.exit(1)
-        status_data = response.json()
+    start_time = time.time()
+    with tqdm(ncols=256) as pbar:
 
-        if response.status_code == 202:
-            print(
-                f"⏳ Import in progress for {dataset_name}... "
-                f"(202 Accepted) {status_data}"
-            )
-            time.sleep(POLL_INTERVAL)
-            continue
+        elapsed = time.time() - start_time
+        pbar.update(1)
+        pbar.set_description_str(
+            f"Polling {dataset_name}... Elapsed: {elapsed:.1f}s"
+        )
 
-        if response.status_code != 200:
-            print(
-                f"❌ Import failed for {dataset_name} - status code "
-                f"{response.status_code}"
-            )
-            print(f"Response: {response.text}")
-            sys.exit(1)
+        while True:
+            response = requests.get(status_url)
+            content_type = response.headers.get("Content-Type", "")
 
-        if (
-            "resourceType" not in status_data or
-            status_data["resourceType"] != "OperationOutcome"
-        ):
-            print(f"⚠️  Unexpected response format for {dataset_name}:")
-            print(f"Response: {status_data}")
-            sys.exit(1)
+            if "json" not in content_type:
+                print(
+                    f"❌ Unexpected Content-Type for {dataset_name}: {content_type}"
+                )
+                print(f"Response: {response.text}")
+                sys.exit(1)
+            status_data = response.json()
 
-        issues = status_data.get("issue", [])
-        ok = True
-        for issue in issues:
-            severity = issue.get("severity", "unknown")
-            details = issue.get("details", {}).get("text", "")
-            print(f"ℹ️  OperationOutcome ({severity}): {details}")
-            ok = ok and (severity != "error")
-        if not ok:
-            print(json.dumps(status_data, indent=2))
-            print(
-                f"❌ Import failed for {dataset_name} "
-                f"(OperationOutcome received)"
-            )
-        else:
+            if response.status_code == 202:
+                # print(
+                #     f"⏳ Import in progress for {dataset_name}... "
+                #     f"(202 Accepted) {status_data}"
+                # )
+                # elapsed = time.time() - start_time
+                pbar.update(1)
+                diagnostics = [_["diagnostics"] for _ in status_data.get("issue", [])]
+                if len(diagnostics) == 1:
+                    diagnostics = diagnostics[0]
+                pbar.set_description(
+                    f"⏳ {diagnostics}",
+                )
+
+                time.sleep(POLL_INTERVAL)
+                continue
+
+            pbar.close()
+
+            if response.status_code != 200:
+                print(
+                    f"❌ Import failed for {dataset_name} - status code "
+                    f"{response.status_code}"
+                )
+                print(f"Response: {response.text}")
+                sys.exit(1)
+
             if (
-                len(issues) == 1 and
-                issues[0].get("severity") == "information" and
-                "reportMsg" in issues[0].get("diagnostics", "")
+                "resourceType" not in status_data or
+                status_data["resourceType"] != "OperationOutcome"
             ):
-                report = json.loads(issues[0]["diagnostics"])["reportMsg"]
-                print(f"ℹ️  Import report for {dataset_name}: {report}")
-            else:
+                print(f"⚠️  Unexpected response format for {dataset_name}:")
+                print(f"Response: {status_data}")
+                sys.exit(1)
+
+            issues = status_data.get("issue", [])
+            ok = True
+            for issue in issues:
+                severity = issue.get("severity", "unknown")
+                details = issue.get("details", {}).get("text", "")
+                print(f"ℹ️  OperationOutcome ({severity}): {details}")
+                ok = ok and (severity != "error")
+            if not ok:
                 print(json.dumps(status_data, indent=2))
-            print(
-                f"✅ Import completed for {dataset_name} "
-                f"(OperationOutcome received)"
-            )
-        sys.exit(0)
+                print(
+                    f"❌ Import failed for {dataset_name} "
+                    f"(OperationOutcome received)"
+                )
+            else:
+                if (
+                    len(issues) == 1 and
+                    issues[0].get("severity") == "information" and
+                    "reportMsg" in issues[0].get("diagnostics", "")
+                ):
+                    report = json.loads(issues[0]["diagnostics"])["reportMsg"]
+                    print(f"ℹ️  Import report for {dataset_name}: {report}")
+                else:
+                    print(json.dumps(status_data, indent=2))
+                print(
+                    f"✅ Import completed for {dataset_name} "
+                    f"(OperationOutcome received)"
+                )
+            sys.exit(0)
 
 
 def main():
