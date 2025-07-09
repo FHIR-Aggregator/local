@@ -68,11 +68,13 @@ def discover_datasets():
     """
     print("🔍 Discovering datasets...")
     objects = list_ndjson_objects(BUCKET_BASE)
+    import re
     projects = [
         _["url"].replace(BUCKET_BASE + '/', '') for _ in objects
     ]
+    meta_pattern = re.compile(r".*META")
     projects = sorted(
-        set([_[:_.find('META') + len('META')] for _ in projects])
+        set([match.group(0) for _ in projects if (match := meta_pattern.match(_))])
     )
 
     dataset_dict = {}
