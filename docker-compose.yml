@@ -21,6 +21,7 @@ services:
       - HAPI_FHIR_DATASOURCE_PASSWORD=hapi
       - hapi.fhir.bulk_export_enabled=true
       - hapi.fhir.bulk_import_enabled=true
+    entrypoint: ["java", "-Xms4g", "-Xmx7g", "-jar", "/app/main.war"]
     depends_on:
       - db
     volumes:
@@ -29,8 +30,8 @@ services:
   importer:
     build: ./importer
     command: python import_fhir_data.py
-#    depends_on:
-#      - fhir-server
+    depends_on:
+      - fhir-server
     environment:
       - PYTHONUNBUFFERED=1
 
