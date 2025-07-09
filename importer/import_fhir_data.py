@@ -293,7 +293,7 @@ def main():
     parser.add_argument(
         "--skip-legacy",
         action="store_true",
-        help="Skip R4 legacy datasets"
+        help="Skip legacy datasets R4/*, PATCH/*"
     )
     args = parser.parse_args()
 
@@ -310,7 +310,7 @@ def main():
     if args.command == "import":
         for dataset, dataset_info in datasets.items():
             urls = dataset_info['objects']
-            if args.skip_legacy and dataset.startswith("R4"):
+            if args.skip_legacy and (dataset.startswith("R4") or dataset.startswith("PATCH")):
                 continue
             if args.only and args.only not in dataset:
                 continue
