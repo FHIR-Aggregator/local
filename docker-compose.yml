@@ -35,6 +35,16 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
 
+  post_start:
+    build: ./importer
+    command: import --only IG/META
+    depends_on:
+      - fhir-server
+      - db
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: "no"
+
 volumes:
   db-data:
   fhir-data:
